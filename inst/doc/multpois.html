@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Jacob O. Wobbrock" />
+
+<meta name="date" content="2024-10-13" />
+
+<title>Analyzing nominal responses using the multinomial-Poisson trick</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Analyzing nominal responses using the
+multinomial-Poisson trick</h1>
+<h4 class="author">Jacob O. Wobbrock</h4>
+<h4 class="date">2024-10-13</h4>
+
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>This vignette shows how to use the <code>multpois</code> package for
+analyzing nominal response data. Nominal responses, sometimes called
+multinomial responses, are unordered categories. In certain experiments
+or surveys, the dependent variable can be one of <em>N</em> categories.
+For example, we might ask people what their favorite ice cream flavor
+is: vanilla, chocolate, or strawberry. This four-category response would
+be a polytomous dependent variable. Perhaps we wish to ask adults and
+children about their favorite ice cream to see if there is a difference
+by age group. We would then have a two-level between-subjects factor. If
+we ask each respondent only once, this data set would represent a
+one-way between-subjects design. But perhaps we ask each participant
+once <em>each season</em>—in fall, winter, spring, and summer—to see if
+their responses change. Now we would have a four-level within-subjects
+factor, i.e., repeated measures.</p>
+<p>The <code>multpois</code> package helps us analyze this type of data,
+where the dependent variable is nominal. It does so by modeling nominal
+responses as counts of category choices and uses (mixed) Poisson
+regression to analyze these counts (Baker 1994, Chen &amp; Kuo 2001).
+This technique is known as the multinomial-Poisson transformation
+(Guimaraes 2004) or trick (Lee et al. 2017).</p>
+<p>R already provides options for the following situations:</p>
+<ul>
+<li><p>If the response is dichotomous, and the factors are only
+between-subjects, we can build a model using <code>glm</code> with
+<code>family=binomial</code> from the base <code>stats</code> package.
+The <code>Anova</code> function from the <code>car</code> package can be
+used to produce main effects and interactions. The <code>emmeans</code>
+function from the <code>emmeans</code> package can be used to produce
+<em>post hoc</em> pairwise comparisons.</p></li>
+<li><p>If the response is polytomous, and the factors are only
+between-subjects, we can build a model using <code>multinom</code> from
+the <code>nnet</code> package. The <code>Anova</code> function from the
+<code>car</code> package can be used to produce main effects and
+interactions. However, we cannot use the <code>emmeans</code> function
+from the <code>emmeans</code> package in the usual fashion. An approach
+to this issue by <code>emmeans</code> package author Russ Lenth is
+offered below.</p></li>
+<li><p>If the response is dichotomous, and one or more factors is
+within-subjects, we can build a model using <code>glmer</code> with
+<code>family=binomial</code> from the <code>lme4</code> package. The
+<code>Anova</code> function from the <code>car</code> package can be
+used to produce main effects and interactions. The <code>emmeans</code>
+function from the <code>emmeans</code> package can be used to produce
+<em>post hoc</em> pairwise comparisons.</p></li>
+<li><p>If the response is polytomous, and one or more factors is
+within-subjects, there is no easy option similar to the three above. The
+<code>multinom</code> function in <code>nnet</code> cannot take random
+factors to handle repeated measures, and the <code>glmer</code> function
+in <code>lme4</code> does not offer a <code>family=multinomial</code>
+option. It is this case in particular that this package was created to
+address, although it can address the above three scenarios,
+also.</p></li>
+</ul>
+<p>The first four analyses below illustrate 2×2 designs having between-
+and within-subjects factors and dichotomous and polytomous responses.
+(The functions in <code>multpois</code> are not limited to 2×2 designs;
+any number of between- and within-subjects factors can be used.) The
+first three examples first use existing R solutions to which the results
+from <code>multpois</code> functions can be compared.</p>
+<p>The fifth example returns to our ice cream scenario, above, and
+analyzes a mixed factorial design with one between-subjects factor
+(<code>Age</code>) and one within-subjects factor
+(<code>Season</code>).</p>
+</div>
+<div id="contents" class="section level2">
+<h2>Contents</h2>
+<ol style="list-style-type: decimal">
+<li><a href="#references">References</a>: Relevant academic references
+for this vignette.</li>
+<li><a href="#libraries">Libraries</a>: External R libraries needed for
+this vignette.</li>
+<li><a href="#bs2">Between-subjects 2×2 design with dichotomous
+response</a>: Analysis of the <code>bs2</code> data set.</li>
+<li><a href="#bs3">Between-subjects 2×2 design with polytomous
+response</a>: Analysis of the <code>bs3</code> data set.</li>
+<li><a href="#ws2">Within-subjects 2×2 design with dichotomous
+response</a>: Analysis of the <code>ws2</code> data set.</li>
+<li><a href="#ws3">Within-subjects 2×2 design with polytomous
+response</a>: Analysis of the <code>ws3</code> data set.</li>
+<li><a href="#ice">Mixed factorial 2×2 design with polytomous
+response</a>: Analysis of the <code>icecream</code> data set.</li>
+</ol>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>Baker, S.G. (1994). The multinomial-Poisson transformation. <em>The
+Statistician 43</em> (4), pp. 495-504. <a href="https://doi.org/10.2307/2348134" class="uri">https://doi.org/10.2307/2348134</a></p>
+<p>Chen, Z. and Kuo, L. (2001). A note on the estimation of the
+multinomial logit model with random effects. <em>The American
+Statistician</em> 55 (2), pp. 89-95. <a href="https://www.jstor.org/stable/2685993" class="uri">https://www.jstor.org/stable/2685993</a></p>
+<p>Guimaraes, P. (2004). Understanding the multinomial-Poisson
+transformation. <em>The Stata Journal</em> 4 (3), pp. 265-273. <a href="https://www.stata-journal.com/article.html?article=st0069" class="uri">https://www.stata-journal.com/article.html?article=st0069</a></p>
+<p>Lee, J.Y.L., Green, P.J.,and Ryan, L.M. (2017). On the “Poisson
+trick” and its extensions for fitting multinomial regression models.
+<em>arXiv preprint</em> available at <a href="https://doi.org/10.48550/arXiv.1707.08538" class="uri">https://doi.org/10.48550/arXiv.1707.08538</a></p>
+</div>
+<div id="libraries" class="section level2">
+<h2>Libraries</h2>
+<p>These are the libraries needed for running the code in this
+vignette:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(car)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(nnet)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">library</span>(lmerTest)</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">library</span>(emmeans)</span></code></pre></div>
+<p>Let’s also load our library:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(multpois)</span></code></pre></div>
+<p><a name="bs2"></a></p>
+</div>
+<div id="between-subjects-22-design-with-dichotomous-response" class="section level2">
+<h2>Between-subjects 2×2 design with dichotomous response</h2>
+<p>Let’s load and prepare our first data set, a 2×2 between-subjects
+design with a dichotomous response. Factor <code>X1</code> has levels
+<code>{a, b}</code>, factor <code>X2</code> has levels
+<code>{c, d}</code>, and response <code>Y</code> has categories
+<code>{yes, no}</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">data</span>(bs2, <span class="at">package=</span><span class="st">&quot;multpois&quot;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>bs2<span class="sc">$</span>PId <span class="ot">=</span> <span class="fu">factor</span>(bs2<span class="sc">$</span>PId)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>bs2<span class="sc">$</span>Y <span class="ot">=</span> <span class="fu">factor</span>(bs2<span class="sc">$</span>Y)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>bs2<span class="sc">$</span>X1 <span class="ot">=</span> <span class="fu">factor</span>(bs2<span class="sc">$</span>X1)</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>bs2<span class="sc">$</span>X2 <span class="ot">=</span> <span class="fu">factor</span>(bs2<span class="sc">$</span>X2)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">contrasts</span>(bs2<span class="sc">$</span>X1) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="fu">contrasts</span>(bs2<span class="sc">$</span>X2) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span></code></pre></div>
+<p>Let’s visualize this data set using a mosaic plot:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>xt <span class="ot">=</span> <span class="fu">xtabs</span>( <span class="sc">~</span> X1 <span class="sc">+</span> X2 <span class="sc">+</span> Y, <span class="at">data=</span>bs2)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">mosaicplot</span>(xt, <span class="at">main=</span><span class="st">&quot;Y by X1, X2&quot;</span>, <span class="at">las=</span><span class="dv">1</span>, <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;pink&quot;</span>,<span class="st">&quot;lightgreen&quot;</span>))</span></code></pre></div>
+<div class="float">
+<img src="data:image/png;base64,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" alt="Figure 1. Proportions of no (pink) and yes (green) responses in four conditions: {a, c}, {a, d}, {b, c}, and {b, d}." />
+<div class="figcaption"><strong>Figure 1.</strong> Proportions of
+<code>no</code> (pink) and <code>yes</code> (green) responses in four
+conditions: <code>{a, c}</code>, <code>{a, d}</code>,
+<code>{b, c}</code>, and <code>{b, d}</code>.</div>
+</div>
+<p>Given <code>X1</code> and <code>X2</code> are both between-subjects
+factors, and <code>Y</code> is a dichotomous response, we can analyze
+this data set using conventional logistic regression:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>m1 <span class="ot">=</span> <span class="fu">glm</span>(Y <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">data=</span>bs2, <span class="at">family=</span>binomial)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">Anova</span>(m1, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III tests)</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; Response: Y</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt;       LR Chisq Df Pr(&gt;Chisq)  </span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; X1      4.4440  1    0.03502 *</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt; X2      0.7513  1    0.38606  </span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt; X1:X2   4.4440  1    0.03502 *</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="fu">emmeans</span>(m1, pairwise <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">adjust=</span><span class="st">&quot;holm&quot;</span>)<span class="sc">$</span>contrasts</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;  contrast  estimate    SE  df z.ratio p.value</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt;  a c - b c   -2.398 0.870 Inf  -2.755  0.0352</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt;  a c - a d   -1.705 0.801 Inf  -2.129  0.1661</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;  a c - b d   -1.705 0.801 Inf  -2.129  0.1661</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;  b c - a d    0.693 0.847 Inf   0.819  1.0000</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;  b c - b d    0.693 0.847 Inf   0.819  1.0000</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt;  a d - b d    0.000 0.775 Inf   0.000  1.0000</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; Results are given on the log odds ratio (not the response) scale. </span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; P value adjustment: holm method for 6 tests</span></span></code></pre></div>
+<p>We can also analyze this data set using the multinomial-Poisson
+trick, which converts nominal responses to category counts and analyzes
+these counts using Poisson regression:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>m2 <span class="ot">=</span> <span class="fu">glm.mp</span>(Y <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">data=</span>bs2)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">Anova.mp</span>(m2, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III tests)</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt; Response: Y</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt; via the multinomial-Poisson trick</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt;        Chisq Df  N Pr(&gt;Chisq)  </span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt; X1    4.4440  1 60    0.03502 *</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt; X2    0.7513  1 60    0.38606  </span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt; X1:X2 4.4440  1 60    0.03502 *</span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="fu">glm.mp.con</span>(m2, pairwise <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">adjust=</span><span class="st">&quot;holm&quot;</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt; $heading</span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Pairwise comparisons via the multinomial-Poisson trick&quot;</span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#&gt; $contrasts</span></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co">#&gt;    Contrast    Chisq Df  N  p.value</span></span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co">#&gt; 1 a.c - a.d 4.962518  1 30 0.129510</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a><span class="co">#&gt; 2 a.c - b.c 9.045871  1 30 0.015798</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a><span class="co">#&gt; 3 a.c - b.d 4.962518  1 30 0.129510</span></span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a><span class="co">#&gt; 4 a.d - b.c 0.687412  1 30 1.000000</span></span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a><span class="co">#&gt; 5 a.d - b.d 0.000000  1 30 1.000000</span></span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a><span class="co">#&gt; 6 b.c - b.d 0.687412  1 30 1.000000</span></span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a><span class="co">#&gt; $notes</span></span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a><span class="co">#&gt; [1] &quot;P value adjustment: holm method for 6 tests&quot;</span></span></code></pre></div>
+<p>The omnibus results from logistic regression and from the
+multinomial-Poisson trick match, and the results from the <em>post
+hoc</em> pairwise comparisons are quite similar.</p>
+<p><a name="bs3"></a></p>
+</div>
+<div id="between-subjects-22-design-with-polytomous-response" class="section level2">
+<h2>Between-subjects 2×2 design with polytomous response</h2>
+<p>Let’s load and prepare our second data set, a 2×2 between-subjects
+design with a polytomous response. Factor <code>X1</code> has levels
+<code>{a, b}</code>, factor <code>X2</code> has levels
+<code>{c, d}</code>, and response <code>Y</code> has categories
+<code>{yes, no, maybe}</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">data</span>(bs3, <span class="at">package=</span><span class="st">&quot;multpois&quot;</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>bs3<span class="sc">$</span>PId <span class="ot">=</span> <span class="fu">factor</span>(bs3<span class="sc">$</span>PId)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>bs3<span class="sc">$</span>Y <span class="ot">=</span> <span class="fu">factor</span>(bs3<span class="sc">$</span>Y)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>bs3<span class="sc">$</span>X1 <span class="ot">=</span> <span class="fu">factor</span>(bs3<span class="sc">$</span>X1)</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>bs3<span class="sc">$</span>X2 <span class="ot">=</span> <span class="fu">factor</span>(bs3<span class="sc">$</span>X2)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="fu">contrasts</span>(bs3<span class="sc">$</span>X1) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="fu">contrasts</span>(bs3<span class="sc">$</span>X2) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span></code></pre></div>
+<p>Let’s again visualize the data using a mosaic plot:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>xt <span class="ot">=</span> <span class="fu">xtabs</span>( <span class="sc">~</span> X1 <span class="sc">+</span> X2 <span class="sc">+</span> Y, <span class="at">data=</span>bs3)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">mosaicplot</span>(xt, <span class="at">main=</span><span class="st">&quot;Y by X1, X2&quot;</span>, <span class="at">las=</span><span class="dv">1</span>, <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;lightyellow&quot;</span>,<span class="st">&quot;pink&quot;</span>,<span class="st">&quot;lightgreen&quot;</span>))</span></code></pre></div>
+<div class="float">
+<img src="data:image/png;base64,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" alt="Figure 2. Proportions of maybe (yellow), no (pink), and yes (green) responses in four conditions: {a, c}, {a, d}, {b, c}, and {b, d}." />
+<div class="figcaption"><strong>Figure 2.</strong> Proportions of
+<code>maybe</code> (yellow), <code>no</code> (pink), and
+<code>yes</code> (green) responses in four conditions:
+<code>{a, c}</code>, <code>{a, d}</code>, <code>{b, c}</code>, and
+<code>{b, d}</code>.</div>
+</div>
+<p>Given <code>X1</code> and <code>X2</code> are both between-subjects
+factors, and <code>Y</code> is a polytomous response, we might wish that
+<code>glm</code> had a <code>family=multinomial</code> option analogous
+to its <code>family=binomial</code> option, but it does not.
+Fortunately, we can analyze polytomous response data for (only)
+between-subjects factors using the <code>multinom</code> function from
+the <code>nnet</code> package:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>m3 <span class="ot">=</span> <span class="fu">multinom</span>(Y <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">data=</span>bs3, <span class="at">trace=</span><span class="cn">FALSE</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">Anova</span>(m3, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III tests)</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; Response: Y</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">#&gt;       LR Chisq Df Pr(&gt;Chisq)  </span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt; X1      3.5327  2    0.17096  </span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt; X2      7.8081  2    0.02016 *</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co">#&gt; X1:X2   4.0039  2    0.13507  </span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span></code></pre></div>
+<p>Unfortunately, <code>emmeans</code> does not work straightforwardly
+with <code>multinom</code> models. A solution to this issue from Russ
+Lenth, lead author of <code>emmeans</code>, was <a href="https://stackoverflow.com/questions/33316898/r-tukey-posthoc-tests-for-nnet-multinom-multinomial-fit-to-test-for-overall-dif">posted
+on StackExchange</a>:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>e0 <span class="ot">=</span> <span class="fu">emmeans</span>(m3, <span class="sc">~</span> X1<span class="sc">*</span>X2 <span class="sc">|</span> Y, <span class="at">mode=</span><span class="st">&quot;latent&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>c0 <span class="ot">=</span> <span class="fu">contrast</span>(e0, <span class="at">method=</span><span class="st">&quot;pairwise&quot;</span>, <span class="at">ref=</span><span class="dv">1</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">test</span>(c0, <span class="at">joint=</span><span class="cn">TRUE</span>, <span class="at">by=</span><span class="st">&quot;contrast&quot;</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co">#&gt;  contrast  df1 df2 F.ratio p.value note</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt;  a c - b c   2   8   3.017  0.1056  d  </span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt;  a c - a d   2   8   4.552  0.0479  d  </span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt;  a c - b d   2   8   4.610  0.0466  d  </span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt;  b c - a d   2   8   0.688  0.5298  d  </span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt;  b c - b d   2   8   0.611  0.5661  d  </span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt;  a d - b d   2   8   1.308  0.3224  d  </span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#&gt; d: df1 reduced due to linear dependence</span></span></code></pre></div>
+<p>We can also analyze this data set using the multinomial-Poisson
+trick:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>m4 <span class="ot">=</span> <span class="fu">glm.mp</span>(Y <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">data=</span>bs3)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">Anova.mp</span>(m4, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III tests)</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; Response: Y</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; via the multinomial-Poisson trick</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt;        Chisq Df  N Pr(&gt;Chisq)  </span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; X1    3.5327  2 60    0.17096  </span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; X2    7.8081  2 60    0.02016 *</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; X1:X2 4.0039  2 60    0.13507  </span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a><span class="fu">glm.mp.con</span>(m4, pairwise <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">adjust=</span><span class="st">&quot;holm&quot;</span>)</span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a><span class="co">#&gt; $heading</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Pairwise comparisons via the multinomial-Poisson trick&quot;</span></span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a><span class="co">#&gt; $contrasts</span></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a><span class="co">#&gt;    Contrast     Chisq Df  N  p.value</span></span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a><span class="co">#&gt; 1 a.c - a.d 12.172660  2 30 0.013644</span></span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a><span class="co">#&gt; 2 a.c - b.c  6.990329  2 30 0.121376</span></span>
+<span id="cb11-21"><a href="#cb11-21" tabindex="-1"></a><span class="co">#&gt; 3 a.c - b.d 11.647010  2 30 0.014785</span></span>
+<span id="cb11-22"><a href="#cb11-22" tabindex="-1"></a><span class="co">#&gt; 4 a.d - b.c  1.425017  2 30 0.980826</span></span>
+<span id="cb11-23"><a href="#cb11-23" tabindex="-1"></a><span class="co">#&gt; 5 a.d - b.d  2.804595  2 30 0.738093</span></span>
+<span id="cb11-24"><a href="#cb11-24" tabindex="-1"></a><span class="co">#&gt; 6 b.c - b.d  1.252756  2 30 0.980826</span></span>
+<span id="cb11-25"><a href="#cb11-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-26"><a href="#cb11-26" tabindex="-1"></a><span class="co">#&gt; $notes</span></span>
+<span id="cb11-27"><a href="#cb11-27" tabindex="-1"></a><span class="co">#&gt; [1] &quot;P value adjustment: holm method for 6 tests&quot;</span></span></code></pre></div>
+<p>Again, the results from multinomial logistic regression and from the
+multinomial-Poisson trick match. The results from the <em>post hoc</em>
+pairwise comparisons are fairly similar.</p>
+<p><a name="ws2"></a></p>
+</div>
+<div id="within-subjects-22-design-with-dichotomous-response" class="section level2">
+<h2>Within-subjects 2×2 design with dichotomous response</h2>
+<p>Let’s load and prepare our third data set, a 2×2 within-subjects
+design with a dichotomous response. Factor <code>X1</code> has levels
+<code>{a, b}</code>, factor <code>X2</code> has levels
+<code>{c, d}</code>, and response <code>Y</code> has categories
+<code>{yes, no}</code>. Now the <code>PId</code> factor is repeated
+across rows, indicating participants were measured repeatedly.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">data</span>(ws2, <span class="at">package=</span><span class="st">&quot;multpois&quot;</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>ws2<span class="sc">$</span>PId <span class="ot">=</span> <span class="fu">factor</span>(ws2<span class="sc">$</span>PId)</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>ws2<span class="sc">$</span>Y <span class="ot">=</span> <span class="fu">factor</span>(ws2<span class="sc">$</span>Y)</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>ws2<span class="sc">$</span>X1 <span class="ot">=</span> <span class="fu">factor</span>(ws2<span class="sc">$</span>X1)</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>ws2<span class="sc">$</span>X2 <span class="ot">=</span> <span class="fu">factor</span>(ws2<span class="sc">$</span>X2)</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="fu">contrasts</span>(ws2<span class="sc">$</span>X1) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="fu">contrasts</span>(ws2<span class="sc">$</span>X2) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span></code></pre></div>
+<p>Let’s visualize this data set using a mosaic plot:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>xt <span class="ot">=</span> <span class="fu">xtabs</span>( <span class="sc">~</span> X1 <span class="sc">+</span> X2 <span class="sc">+</span> Y, <span class="at">data=</span>ws2)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">mosaicplot</span>(xt, <span class="at">main=</span><span class="st">&quot;Y by X1, X2&quot;</span>, <span class="at">las=</span><span class="dv">1</span>, <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;pink&quot;</span>,<span class="st">&quot;lightgreen&quot;</span>))</span></code></pre></div>
+<div class="float">
+<img src="data:image/png;base64,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" alt="Figure 3. Proportions of no (pink) and yes (green) responses in four conditions: {a, c}, {a, d}, {b, c}, and {b, d}." />
+<div class="figcaption"><strong>Figure 3.</strong> Proportions of
+<code>no</code> (pink) and <code>yes</code> (green) responses in four
+conditions: <code>{a, c}</code>, <code>{a, d}</code>,
+<code>{b, c}</code>, and <code>{b, d}</code>.</div>
+</div>
+<p>Given <code>X1</code> and <code>X2</code> are both within-subjects
+factors, and <code>Y</code> is a dichotomous response, we can analyze
+this using mixed-effects logistic regression. The function
+<code>glmer</code> from the <code>lme4</code> package provides this for
+us:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>m5 <span class="ot">=</span> <span class="fu">glmer</span>(Y <span class="sc">~</span> X1<span class="sc">*</span>X2 <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>PId), <span class="at">data=</span>ws2, <span class="at">family=</span>binomial)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">Anova</span>(m5, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III Wald chisquare tests)</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="co">#&gt; Response: Y</span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co">#&gt;              Chisq Df Pr(&gt;Chisq)   </span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="co">#&gt; (Intercept) 0.8553  1   0.355052   </span></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="co">#&gt; X1          0.8553  1   0.355052   </span></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a><span class="co">#&gt; X2          6.6368  1   0.009989 **</span></span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a><span class="co">#&gt; X1:X2       4.3758  1   0.036452 * </span></span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span>
+<span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a><span class="fu">emmeans</span>(m5, pairwise <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">adjust=</span><span class="st">&quot;holm&quot;</span>)<span class="sc">$</span>contrasts</span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a><span class="co">#&gt;  contrast  estimate    SE  df z.ratio p.value</span></span>
+<span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a><span class="co">#&gt;  a c - b c    0.693 0.847 Inf   0.819  0.8258</span></span>
+<span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a><span class="co">#&gt;  a c - a d    2.773 0.913 Inf   3.037  0.0143</span></span>
+<span id="cb14-17"><a href="#cb14-17" tabindex="-1"></a><span class="co">#&gt;  a c - b d    0.981 0.833 Inf   1.177  0.7176</span></span>
+<span id="cb14-18"><a href="#cb14-18" tabindex="-1"></a><span class="co">#&gt;  b c - a d    2.079 0.847 Inf   2.456  0.0702</span></span>
+<span id="cb14-19"><a href="#cb14-19" tabindex="-1"></a><span class="co">#&gt;  b c - b d    0.288 0.760 Inf   0.378  0.8258</span></span>
+<span id="cb14-20"><a href="#cb14-20" tabindex="-1"></a><span class="co">#&gt;  a d - b d   -1.792 0.833 Inf  -2.150  0.1262</span></span>
+<span id="cb14-21"><a href="#cb14-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-22"><a href="#cb14-22" tabindex="-1"></a><span class="co">#&gt; Results are given on the log odds ratio (not the response) scale. </span></span>
+<span id="cb14-23"><a href="#cb14-23" tabindex="-1"></a><span class="co">#&gt; P value adjustment: holm method for 6 tests</span></span></code></pre></div>
+<p>We can also analyze this data set using the multinomial-Poisson
+trick, now with an underlying mixed-effects Poisson regression
+model:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>m6 <span class="ot">=</span> <span class="fu">glmer.mp</span>(Y <span class="sc">~</span> X1<span class="sc">*</span>X2 <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>PId), <span class="at">data=</span>ws2)</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">Anova.mp</span>(m6, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III Wald chisquare tests)</span></span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a><span class="co">#&gt; Response: Y</span></span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a><span class="co">#&gt; via the multinomial-Poisson trick</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a><span class="co">#&gt;        Chisq Df  N Pr(&gt;Chisq)   </span></span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a><span class="co">#&gt; X1    0.8553  1 60   0.355052   </span></span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a><span class="co">#&gt; X2    6.6368  1 60   0.009989 **</span></span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a><span class="co">#&gt; X1:X2 4.3758  1 60   0.036452 * </span></span>
+<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb15-12"><a href="#cb15-12" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span>
+<span id="cb15-13"><a href="#cb15-13" tabindex="-1"></a><span class="fu">glmer.mp.con</span>(m6, pairwise <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">adjust=</span><span class="st">&quot;holm&quot;</span>)</span>
+<span id="cb15-14"><a href="#cb15-14" tabindex="-1"></a><span class="co">#&gt; $heading</span></span>
+<span id="cb15-15"><a href="#cb15-15" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Pairwise comparisons via the multinomial-Poisson trick&quot;</span></span>
+<span id="cb15-16"><a href="#cb15-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb15-17"><a href="#cb15-17" tabindex="-1"></a><span class="co">#&gt; $contrasts</span></span>
+<span id="cb15-18"><a href="#cb15-18" tabindex="-1"></a><span class="co">#&gt;    Contrast    Chisq Df  N  p.value</span></span>
+<span id="cb15-19"><a href="#cb15-19" tabindex="-1"></a><span class="co">#&gt; 1 a.c - a.d 9.224694  1 30 0.014328</span></span>
+<span id="cb15-20"><a href="#cb15-20" tabindex="-1"></a><span class="co">#&gt; 2 a.c - b.c 0.670400  1 30 0.825824</span></span>
+<span id="cb15-21"><a href="#cb15-21" tabindex="-1"></a><span class="co">#&gt; 3 a.c - b.d 1.385318  1 30 0.717591</span></span>
+<span id="cb15-22"><a href="#cb15-22" tabindex="-1"></a><span class="co">#&gt; 4 a.d - b.c 6.033595  1 30 0.070180</span></span>
+<span id="cb15-23"><a href="#cb15-23" tabindex="-1"></a><span class="co">#&gt; 5 a.d - b.d 4.622979  1 30 0.126184</span></span>
+<span id="cb15-24"><a href="#cb15-24" tabindex="-1"></a><span class="co">#&gt; 6 b.c - b.d 0.143240  1 30 0.825824</span></span>
+<span id="cb15-25"><a href="#cb15-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb15-26"><a href="#cb15-26" tabindex="-1"></a><span class="co">#&gt; $notes</span></span>
+<span id="cb15-27"><a href="#cb15-27" tabindex="-1"></a><span class="co">#&gt; [1] &quot;P value adjustment: holm method for 6 tests&quot;</span></span></code></pre></div>
+<p>The results from mixed-effects logistic regression and results from
+the multinomial-Poisson trick match, including the results from the
+<em>post hoc</em> pairwise comparisons.</p>
+<p><a name="ws3"></a></p>
+</div>
+<div id="within-subjects-22-design-with-polytomous-response" class="section level2">
+<h2>Within-subjects 2×2 design with polytomous response</h2>
+<p>This fourth example is the reason that the <code>multpois</code>
+package was created. Unlike the three examples above, there are not
+straightforward options for analyzing nominal responses with repeated
+measures and obtaining ANOVA-style results. Some functions do offer
+mixed-effects multinomial regression modeling, such as
+<code>mblogit</code> in the <code>mclogit</code> package, but they do
+not enable ANOVA-style output. Other advanced methods exist, such as
+Markov chain Monte Carlo (MCMC) methods in the <code>MCMCglmm</code>
+library, which does have a <code>family=multinomial</code> option, but
+these methods are complex and deviate from the approaches illustrated
+above. Fortunately, we can again use the multinomial-Poisson trick.</p>
+<p>Let’s load and prepare our fourth data set, a 2×2 within-subjects
+design with a polytomous response. Factor <code>X1</code> has levels
+<code>{a, b}</code>, factor <code>X2</code> has levels
+<code>{c, d}</code>, and response <code>Y</code> has categories
+<code>{yes, no, maybe}</code>. Again, the <code>PId</code> factor is
+repeated across rows, indicating participants were measured
+repeatedly.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">data</span>(ws3, <span class="at">package=</span><span class="st">&quot;multpois&quot;</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>ws3<span class="sc">$</span>PId <span class="ot">=</span> <span class="fu">factor</span>(ws3<span class="sc">$</span>PId)</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>ws3<span class="sc">$</span>Y <span class="ot">=</span> <span class="fu">factor</span>(ws3<span class="sc">$</span>Y)</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>ws3<span class="sc">$</span>X1 <span class="ot">=</span> <span class="fu">factor</span>(ws3<span class="sc">$</span>X1)</span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>ws3<span class="sc">$</span>X2 <span class="ot">=</span> <span class="fu">factor</span>(ws3<span class="sc">$</span>X2)</span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a><span class="fu">contrasts</span>(ws3<span class="sc">$</span>X1) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="fu">contrasts</span>(ws3<span class="sc">$</span>X2) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span></code></pre></div>
+<p>Let’s visualize this data set using a mosaic plot:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>xt <span class="ot">=</span> <span class="fu">xtabs</span>( <span class="sc">~</span> X1 <span class="sc">+</span> X2 <span class="sc">+</span> Y, <span class="at">data=</span>ws3)</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="fu">mosaicplot</span>(xt, <span class="at">main=</span><span class="st">&quot;Y by X1, X2&quot;</span>, <span class="at">las=</span><span class="dv">1</span>, <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;lightyellow&quot;</span>,<span class="st">&quot;pink&quot;</span>,<span class="st">&quot;lightgreen&quot;</span>))</span></code></pre></div>
+<div class="float">
+<img src="data:image/png;base64,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" alt="Figure 4. Proportions of maybe (yellow), no (pink), and yes (green) responses in four conditions: {a, c}, {a, d}, {b, c}, and {b, d}." />
+<div class="figcaption"><strong>Figure 4.</strong> Proportions of
+<code>maybe</code> (yellow), <code>no</code> (pink), and
+<code>yes</code> (green) responses in four conditions:
+<code>{a, c}</code>, <code>{a, d}</code>, <code>{b, c}</code>, and
+<code>{b, d}</code>.</div>
+</div>
+<p>Because <code>multinom</code> from the <code>nnet</code> package
+cannot handle random factors, it cannot model repeated measures. And
+because <code>glmer</code> from the <code>lme4</code> package has no
+<code>family=multinomial</code> option, it cannot model polytomous
+responses. Fortunately, with the multinomial-Poisson trick, we can
+analyze polytomous responses from repeated measures:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>m7 <span class="ot">=</span> <span class="fu">glmer.mp</span>(Y <span class="sc">~</span> X1<span class="sc">*</span>X2 <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>PId), <span class="at">data=</span>ws3)</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="fu">Anova.mp</span>(m7, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III Wald chisquare tests)</span></span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="co">#&gt; Response: Y</span></span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a><span class="co">#&gt; via the multinomial-Poisson trick</span></span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a><span class="co">#&gt;        Chisq Df  N Pr(&gt;Chisq)  </span></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="co">#&gt; X1    6.6707  2 60     0.0356 *</span></span>
+<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="co">#&gt; X2    6.6707  2 60     0.0356 *</span></span>
+<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a><span class="co">#&gt; X1:X2 0.5508  2 60     0.7593  </span></span>
+<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span>
+<span id="cb18-13"><a href="#cb18-13" tabindex="-1"></a><span class="fu">glmer.mp.con</span>(m7, pairwise <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">adjust=</span><span class="st">&quot;holm&quot;</span>)</span>
+<span id="cb18-14"><a href="#cb18-14" tabindex="-1"></a><span class="co">#&gt; $heading</span></span>
+<span id="cb18-15"><a href="#cb18-15" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Pairwise comparisons via the multinomial-Poisson trick&quot;</span></span>
+<span id="cb18-16"><a href="#cb18-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb18-17"><a href="#cb18-17" tabindex="-1"></a><span class="co">#&gt; $contrasts</span></span>
+<span id="cb18-18"><a href="#cb18-18" tabindex="-1"></a><span class="co">#&gt;    Contrast     Chisq Df  N  p.value</span></span>
+<span id="cb18-19"><a href="#cb18-19" tabindex="-1"></a><span class="co">#&gt; 1 a.c - a.d  6.033961  2 30 0.244745</span></span>
+<span id="cb18-20"><a href="#cb18-20" tabindex="-1"></a><span class="co">#&gt; 2 a.c - b.c  6.033962  2 30 0.244745</span></span>
+<span id="cb18-21"><a href="#cb18-21" tabindex="-1"></a><span class="co">#&gt; 3 a.c - b.d 10.679680  2 30 0.028782</span></span>
+<span id="cb18-22"><a href="#cb18-22" tabindex="-1"></a><span class="co">#&gt; 4 a.d - b.c  0.000000  2 30 1.000000</span></span>
+<span id="cb18-23"><a href="#cb18-23" tabindex="-1"></a><span class="co">#&gt; 5 a.d - b.d  1.589577  2 30 1.000000</span></span>
+<span id="cb18-24"><a href="#cb18-24" tabindex="-1"></a><span class="co">#&gt; 6 b.c - b.d  1.589578  2 30 1.000000</span></span>
+<span id="cb18-25"><a href="#cb18-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb18-26"><a href="#cb18-26" tabindex="-1"></a><span class="co">#&gt; $notes</span></span>
+<span id="cb18-27"><a href="#cb18-27" tabindex="-1"></a><span class="co">#&gt; [1] &quot;P value adjustment: holm method for 6 tests&quot;</span></span></code></pre></div>
+<p><a name="ice"></a></p>
+</div>
+<div id="mixed-factorial-22-design-with-polytomous-response" class="section level2">
+<h2>Mixed factorial 2×2 design with polytomous response</h2>
+<p>This fifth and final example is also the reason that the
+<code>multpois</code> package was created, since we have a polytomous
+response, one between-subjects factor, and one within-subjects factors.
+This mixed factorial design is also known as a split-plot design.</p>
+<p>This fictional data is based on the scenario at the beginning of this
+vignette. Forty respondents, half adults and half children, were
+surveyed for their favorite ice cream four times, once per season. Thus,
+<code>Age</code> is a between-subjects factor with two levels
+<code>{adult, child}</code> and <code>Season</code> is a within-subjects
+factor with four levels <code>{fall, winter, spring, summer}</code>. The
+polytomous response, <code>Pref</code>, has three categories:
+<code>{vanilla, chocolate, strawberry}</code>. The <code>PId</code>
+factor is repeated across rows, indicating respondents were queried four
+times each.</p>
+<p>Let’s load and prepare this data set:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">data</span>(icecream, <span class="at">package=</span><span class="st">&quot;multpois&quot;</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>icecream<span class="sc">$</span>PId <span class="ot">=</span> <span class="fu">factor</span>(icecream<span class="sc">$</span>PId)</span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>icecream<span class="sc">$</span>Pref <span class="ot">=</span> <span class="fu">factor</span>(icecream<span class="sc">$</span>Pref)</span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>icecream<span class="sc">$</span>Age <span class="ot">=</span> <span class="fu">factor</span>(icecream<span class="sc">$</span>Age)</span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>icecream<span class="sc">$</span>Season <span class="ot">=</span> <span class="fu">factor</span>(icecream<span class="sc">$</span>Season)</span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a><span class="fu">contrasts</span>(icecream<span class="sc">$</span>Age) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a><span class="fu">contrasts</span>(icecream<span class="sc">$</span>Season) <span class="ot">&lt;-</span> <span class="st">&quot;contr.sum&quot;</span></span></code></pre></div>
+<p>Let’s visualize this data set using a mosaic plot:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>xt <span class="ot">=</span> <span class="fu">xtabs</span>( <span class="sc">~</span> Age <span class="sc">+</span> Season <span class="sc">+</span> Pref, <span class="at">data=</span>icecream)</span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="fu">mosaicplot</span>(xt, <span class="at">main=</span><span class="st">&quot;Pref by Age, Season&quot;</span>, <span class="at">las=</span><span class="dv">1</span>, <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;tan&quot;</span>,<span class="st">&quot;pink&quot;</span>,<span class="st">&quot;beige&quot;</span>))</span></code></pre></div>
+<div class="float">
+<img src="data:image/png;base64,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" alt="Figure 5. Proportions of chocolate (brown), strawberry (pink), and vanilla (beige) responses in eight conditions: {adult, fall}, {adult, spring}, {adult, summer}, {adult, winter}, {child, fall}, {child, spring}, {child, summer}, and {child, winter}." />
+<div class="figcaption"><strong>Figure 5.</strong> Proportions of
+<code>chocolate</code> (brown), <code>strawberry</code> (pink), and
+<code>vanilla</code> (beige) responses in eight conditions:
+<code>{adult, fall}</code>, <code>{adult, spring}</code>,
+<code>{adult, summer}</code>, <code>{adult, winter}</code>,
+<code>{child, fall}</code>, <code>{child, spring}</code>,
+<code>{child, summer}</code>, and <code>{child, winter}</code>.</div>
+</div>
+<p>As in the previous example, we can use the multinomial-Poisson trick
+to analyze repeated measures data with polytomous responses:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>m8 <span class="ot">=</span> <span class="fu">glmer.mp</span>(Pref <span class="sc">~</span> Age<span class="sc">*</span>Season <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>PId), <span class="at">data=</span>icecream)</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="fu">Anova.mp</span>(m8, <span class="at">type=</span><span class="dv">3</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="co">#&gt; Analysis of Deviance Table (Type III Wald chisquare tests)</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a><span class="co">#&gt; Response: Pref</span></span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a><span class="co">#&gt; via the multinomial-Poisson trick</span></span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a><span class="co">#&gt;              Chisq Df   N Pr(&gt;Chisq)   </span></span>
+<span id="cb21-8"><a href="#cb21-8" tabindex="-1"></a><span class="co">#&gt; Age         8.9838  2 160   0.011199 * </span></span>
+<span id="cb21-9"><a href="#cb21-9" tabindex="-1"></a><span class="co">#&gt; Season     12.4522  6 160   0.052609 . </span></span>
+<span id="cb21-10"><a href="#cb21-10" tabindex="-1"></a><span class="co">#&gt; Age:Season 18.3118  6 160   0.005498 **</span></span>
+<span id="cb21-11"><a href="#cb21-11" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb21-12"><a href="#cb21-12" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></span></code></pre></div>
+<p>We have a main effect of <code>Age</code> and an
+<code>Age</code>×<code>Season</code> interaction but no main effect of
+<code>Season</code>. We can explore this further by graphically
+depicting response proportions in each age group:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>xt <span class="ot">=</span> <span class="fu">xtabs</span>( <span class="sc">~</span> Age <span class="sc">+</span> Pref, <span class="at">data=</span>icecream)</span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="fu">mosaicplot</span>(xt, <span class="at">main=</span><span class="st">&quot;Pref by Age&quot;</span>, <span class="at">las=</span><span class="dv">1</span>, <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;tan&quot;</span>,<span class="st">&quot;pink&quot;</span>,<span class="st">&quot;beige&quot;</span>))</span></code></pre></div>
+<div class="float">
+<img src="data:image/png;base64,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" alt="Figure 6. Proportions of chocolate (brown), strawberry (pink), and vanilla (beige) responses for adults and children. The main effect of Age emerges, with children preferring chocolate more and strawberry less than adults." />
+<div class="figcaption"><strong>Figure 6.</strong> Proportions of
+<code>chocolate</code> (brown), <code>strawberry</code> (pink), and
+<code>vanilla</code> (beige) responses for adults and children. The main
+effect of <code>Age</code> emerges, with children preferring chocolate
+more and strawberry less than adults.</div>
+</div>
+<p>The different proportions by <code>Age</code> clearly emerge,
+explaining the main effect. Let’s also graphically depict the
+proportions by <code>Season</code>:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>xt <span class="ot">=</span> <span class="fu">xtabs</span>( <span class="sc">~</span> Season <span class="sc">+</span> Pref, <span class="at">data=</span>icecream)</span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a><span class="fu">mosaicplot</span>(xt, <span class="at">main=</span><span class="st">&quot;Pref by Season&quot;</span>, <span class="at">las=</span><span class="dv">1</span>, <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;tan&quot;</span>,<span class="st">&quot;pink&quot;</span>,<span class="st">&quot;beige&quot;</span>))</span></code></pre></div>
+<div class="float">
+<img src="data:image/png;base64,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" alt="Figure 7. Proportions of chocolate (brown), strawberry (pink), and vanilla (beige) responses by season. Although there are some differences in proportion, they are not quite statistically significant (p = 0.053)." />
+<div class="figcaption"><strong>Figure 7.</strong> Proportions of
+<code>chocolate</code> (brown), <code>strawberry</code> (pink), and
+<code>vanilla</code> (beige) responses by season. Although there are
+some differences in proportion, they are not quite statistically
+significant (<em>p</em> = 0.053).</div>
+</div>
+<p>Finally, we can again conduct <em>post hoc</em> pairwise comparisons.
+Note, however, there are many such possible comparisons, and best
+practice would require us to only conduct those comparisons driven by
+hypotheses or planned in advance. For example, we might wish to limit
+our pairwise comparisons to adults vs. children <em>in each season</em>,
+not across all seasons. In any case, we first conduct all pairwise
+comparisons for illustration:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu">glmer.mp.con</span>(m8, pairwise <span class="sc">~</span> Age<span class="sc">*</span>Season, <span class="at">adjust=</span><span class="st">&quot;holm&quot;</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="co">#&gt; $heading</span></span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Pairwise comparisons via the multinomial-Poisson trick&quot;</span></span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="co">#&gt; $contrasts</span></span>
+<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a><span class="co">#&gt;                       Contrast     Chisq Df  N  p.value</span></span>
+<span id="cb24-7"><a href="#cb24-7" tabindex="-1"></a><span class="co">#&gt; 1    adult.fall - adult.spring  9.050033  2 40 0.260040</span></span>
+<span id="cb24-8"><a href="#cb24-8" tabindex="-1"></a><span class="co">#&gt; 2    adult.fall - adult.summer  0.425905  2 40 1.000000</span></span>
+<span id="cb24-9"><a href="#cb24-9" tabindex="-1"></a><span class="co">#&gt; 3    adult.fall - adult.winter  4.152565  2 40 1.000000</span></span>
+<span id="cb24-10"><a href="#cb24-10" tabindex="-1"></a><span class="co">#&gt; 4      adult.fall - child.fall  8.128466  2 40 0.377872</span></span>
+<span id="cb24-11"><a href="#cb24-11" tabindex="-1"></a><span class="co">#&gt; 5    adult.fall - child.spring  1.222474  2 40 1.000000</span></span>
+<span id="cb24-12"><a href="#cb24-12" tabindex="-1"></a><span class="co">#&gt; 6    adult.fall - child.summer  2.136526  2 40 1.000000</span></span>
+<span id="cb24-13"><a href="#cb24-13" tabindex="-1"></a><span class="co">#&gt; 7    adult.fall - child.winter  3.642131  2 40 1.000000</span></span>
+<span id="cb24-14"><a href="#cb24-14" tabindex="-1"></a><span class="co">#&gt; 8  adult.spring - adult.summer  7.606838  2 40 0.447111</span></span>
+<span id="cb24-15"><a href="#cb24-15" tabindex="-1"></a><span class="co">#&gt; 9  adult.spring - adult.winter 14.904790  2 40 0.015820</span></span>
+<span id="cb24-16"><a href="#cb24-16" tabindex="-1"></a><span class="co">#&gt; 10   adult.spring - child.fall 14.957210  2 40 0.015820</span></span>
+<span id="cb24-17"><a href="#cb24-17" tabindex="-1"></a><span class="co">#&gt; 11 adult.spring - child.spring 13.775910  2 40 0.026520</span></span>
+<span id="cb24-18"><a href="#cb24-18" tabindex="-1"></a><span class="co">#&gt; 12 adult.spring - child.summer 13.630850  2 40 0.027425</span></span>
+<span id="cb24-19"><a href="#cb24-19" tabindex="-1"></a><span class="co">#&gt; 13 adult.spring - child.winter  8.577377  2 40 0.315629</span></span>
+<span id="cb24-20"><a href="#cb24-20" tabindex="-1"></a><span class="co">#&gt; 14 adult.summer - adult.winter  3.697246  2 40 1.000000</span></span>
+<span id="cb24-21"><a href="#cb24-21" tabindex="-1"></a><span class="co">#&gt; 15   adult.summer - child.fall  7.059709  2 40 0.556871</span></span>
+<span id="cb24-22"><a href="#cb24-22" tabindex="-1"></a><span class="co">#&gt; 16 adult.summer - child.spring  2.676089  2 40 1.000000</span></span>
+<span id="cb24-23"><a href="#cb24-23" tabindex="-1"></a><span class="co">#&gt; 17 adult.summer - child.summer  2.026498  2 40 1.000000</span></span>
+<span id="cb24-24"><a href="#cb24-24" tabindex="-1"></a><span class="co">#&gt; 18 adult.summer - child.winter  1.974120  2 40 1.000000</span></span>
+<span id="cb24-25"><a href="#cb24-25" tabindex="-1"></a><span class="co">#&gt; 19   adult.winter - child.fall  1.368365  2 40 1.000000</span></span>
+<span id="cb24-26"><a href="#cb24-26" tabindex="-1"></a><span class="co">#&gt; 20 adult.winter - child.spring  3.817680  2 40 1.000000</span></span>
+<span id="cb24-27"><a href="#cb24-27" tabindex="-1"></a><span class="co">#&gt; 21 adult.winter - child.summer  0.429745  2 40 1.000000</span></span>
+<span id="cb24-28"><a href="#cb24-28" tabindex="-1"></a><span class="co">#&gt; 22 adult.winter - child.winter  2.355143  2 40 1.000000</span></span>
+<span id="cb24-29"><a href="#cb24-29" tabindex="-1"></a><span class="co">#&gt; 23   child.fall - child.spring  7.698949  2 40 0.447111</span></span>
+<span id="cb24-30"><a href="#cb24-30" tabindex="-1"></a><span class="co">#&gt; 24   child.fall - child.summer  2.978168  2 40 1.000000</span></span>
+<span id="cb24-31"><a href="#cb24-31" tabindex="-1"></a><span class="co">#&gt; 25   child.fall - child.winter  4.252012  2 40 1.000000</span></span>
+<span id="cb24-32"><a href="#cb24-32" tabindex="-1"></a><span class="co">#&gt; 26 child.spring - child.summer  2.069326  2 40 1.000000</span></span>
+<span id="cb24-33"><a href="#cb24-33" tabindex="-1"></a><span class="co">#&gt; 27 child.spring - child.winter  6.222224  2 40 0.801918</span></span>
+<span id="cb24-34"><a href="#cb24-34" tabindex="-1"></a><span class="co">#&gt; 28 child.summer - child.winter  2.136527  2 40 1.000000</span></span>
+<span id="cb24-35"><a href="#cb24-35" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb24-36"><a href="#cb24-36" tabindex="-1"></a><span class="co">#&gt; $notes</span></span>
+<span id="cb24-37"><a href="#cb24-37" tabindex="-1"></a><span class="co">#&gt; [1] &quot;P value adjustment: holm method for 28 tests&quot;</span></span></code></pre></div>
+<p>If we <em>did</em> wish to compare adults <em>vs.</em> children in
+each season (fall, winter, spring, and summer), we would first conduct
+all pairwise comparisons, leaving them <em>uncorrected</em>…</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">glmer.mp.con</span>(m8, pairwise <span class="sc">~</span> Age<span class="sc">*</span>Season, <span class="at">adjust=</span><span class="st">&quot;none&quot;</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="co">#&gt; $heading</span></span>
+<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Pairwise comparisons via the multinomial-Poisson trick&quot;</span></span>
+<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb25-5"><a href="#cb25-5" tabindex="-1"></a><span class="co">#&gt; $contrasts</span></span>
+<span id="cb25-6"><a href="#cb25-6" tabindex="-1"></a><span class="co">#&gt;                       Contrast     Chisq Df  N  p.value</span></span>
+<span id="cb25-7"><a href="#cb25-7" tabindex="-1"></a><span class="co">#&gt; 1    adult.fall - adult.spring  9.050033  2 40 0.010835</span></span>
+<span id="cb25-8"><a href="#cb25-8" tabindex="-1"></a><span class="co">#&gt; 2    adult.fall - adult.summer  0.425905  2 40 0.808195</span></span>
+<span id="cb25-9"><a href="#cb25-9" tabindex="-1"></a><span class="co">#&gt; 3    adult.fall - adult.winter  4.152565  2 40 0.125396</span></span>
+<span id="cb25-10"><a href="#cb25-10" tabindex="-1"></a><span class="co">#&gt; 4      adult.fall - child.fall  8.128466  2 40 0.017176</span></span>
+<span id="cb25-11"><a href="#cb25-11" tabindex="-1"></a><span class="co">#&gt; 5    adult.fall - child.spring  1.222474  2 40 0.542679</span></span>
+<span id="cb25-12"><a href="#cb25-12" tabindex="-1"></a><span class="co">#&gt; 6    adult.fall - child.summer  2.136526  2 40 0.343605</span></span>
+<span id="cb25-13"><a href="#cb25-13" tabindex="-1"></a><span class="co">#&gt; 7    adult.fall - child.winter  3.642131  2 40 0.161853</span></span>
+<span id="cb25-14"><a href="#cb25-14" tabindex="-1"></a><span class="co">#&gt; 8  adult.spring - adult.summer  7.606838  2 40 0.022294</span></span>
+<span id="cb25-15"><a href="#cb25-15" tabindex="-1"></a><span class="co">#&gt; 9  adult.spring - adult.winter 14.904790  2 40 0.000580</span></span>
+<span id="cb25-16"><a href="#cb25-16" tabindex="-1"></a><span class="co">#&gt; 10   adult.spring - child.fall 14.957210  2 40 0.000565</span></span>
+<span id="cb25-17"><a href="#cb25-17" tabindex="-1"></a><span class="co">#&gt; 11 adult.spring - child.spring 13.775910  2 40 0.001020</span></span>
+<span id="cb25-18"><a href="#cb25-18" tabindex="-1"></a><span class="co">#&gt; 12 adult.spring - child.summer 13.630850  2 40 0.001097</span></span>
+<span id="cb25-19"><a href="#cb25-19" tabindex="-1"></a><span class="co">#&gt; 13 adult.spring - child.winter  8.577377  2 40 0.013723</span></span>
+<span id="cb25-20"><a href="#cb25-20" tabindex="-1"></a><span class="co">#&gt; 14 adult.summer - adult.winter  3.697246  2 40 0.157454</span></span>
+<span id="cb25-21"><a href="#cb25-21" tabindex="-1"></a><span class="co">#&gt; 15   adult.summer - child.fall  7.059709  2 40 0.029309</span></span>
+<span id="cb25-22"><a href="#cb25-22" tabindex="-1"></a><span class="co">#&gt; 16 adult.summer - child.spring  2.676089  2 40 0.262358</span></span>
+<span id="cb25-23"><a href="#cb25-23" tabindex="-1"></a><span class="co">#&gt; 17 adult.summer - child.summer  2.026498  2 40 0.363038</span></span>
+<span id="cb25-24"><a href="#cb25-24" tabindex="-1"></a><span class="co">#&gt; 18 adult.summer - child.winter  1.974120  2 40 0.372671</span></span>
+<span id="cb25-25"><a href="#cb25-25" tabindex="-1"></a><span class="co">#&gt; 19   adult.winter - child.fall  1.368365  2 40 0.504502</span></span>
+<span id="cb25-26"><a href="#cb25-26" tabindex="-1"></a><span class="co">#&gt; 20 adult.winter - child.spring  3.817680  2 40 0.148252</span></span>
+<span id="cb25-27"><a href="#cb25-27" tabindex="-1"></a><span class="co">#&gt; 21 adult.winter - child.summer  0.429745  2 40 0.806644</span></span>
+<span id="cb25-28"><a href="#cb25-28" tabindex="-1"></a><span class="co">#&gt; 22 adult.winter - child.winter  2.355143  2 40 0.308026</span></span>
+<span id="cb25-29"><a href="#cb25-29" tabindex="-1"></a><span class="co">#&gt; 23   child.fall - child.spring  7.698949  2 40 0.021291</span></span>
+<span id="cb25-30"><a href="#cb25-30" tabindex="-1"></a><span class="co">#&gt; 24   child.fall - child.summer  2.978168  2 40 0.225579</span></span>
+<span id="cb25-31"><a href="#cb25-31" tabindex="-1"></a><span class="co">#&gt; 25   child.fall - child.winter  4.252012  2 40 0.119313</span></span>
+<span id="cb25-32"><a href="#cb25-32" tabindex="-1"></a><span class="co">#&gt; 26 child.spring - child.summer  2.069326  2 40 0.355346</span></span>
+<span id="cb25-33"><a href="#cb25-33" tabindex="-1"></a><span class="co">#&gt; 27 child.spring - child.winter  6.222224  2 40 0.044551</span></span>
+<span id="cb25-34"><a href="#cb25-34" tabindex="-1"></a><span class="co">#&gt; 28 child.summer - child.winter  2.136527  2 40 0.343605</span></span>
+<span id="cb25-35"><a href="#cb25-35" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb25-36"><a href="#cb25-36" tabindex="-1"></a><span class="co">#&gt; $notes</span></span>
+<span id="cb25-37"><a href="#cb25-37" tabindex="-1"></a><span class="co">#&gt; [1] &quot;P value adjustment: none method for 28 tests&quot;</span></span></code></pre></div>
+<p>…and then we would extract the relevant comparisons (rows 4, 22, 11,
+and 17, respectively), and manually correct their <em>p</em>-values to
+guard against Type I errors, like so:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu">p.adjust</span>(<span class="fu">c</span>(<span class="fl">0.017176</span>, <span class="fl">0.308026</span>, <span class="fl">0.001020</span>, <span class="fl">0.363038</span>), <span class="at">method=</span><span class="st">&quot;holm&quot;</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a><span class="co">#&gt; [1] 0.051528 0.616052 0.004080 0.616052</span></span></code></pre></div>
+<p>Thus, after correction using Holm’s sequential Bonferroni procedure
+<a href="https://www.jstor.org/stable/4615733">(Holm 1979)</a>, we see
+that adults <em>vs.</em> children in <strong>spring</strong> are
+significantly different (<em>p</em> &lt; .05). Looking again at Figure 5
+visually confirms this result.</p>
+<center>
+<p>Copyright (C) 2024 Jacob O. Wobbrock</p>
+</center>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
