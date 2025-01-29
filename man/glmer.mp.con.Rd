@@ -41,13 +41,22 @@ on a subset of the data relevant to each pairwise comparison.
 
 Users wishing to verify the correctness of \code{glmer.mp.con} should compare its results to
 \code{\link[emmeans]{emmeans}} results for models built with \code{\link[lme4]{glmer}} using
-\code{family=binomial} for dichotomous responses. The results should be similar.
+\code{family=binomial} for dichotomous responses. Factor contrasts should be set to sum-to-zero
+contrasts (i.e., \code{"contr.sum"}).
 }
 \note{
-It is common to receive \code{boundary (singular) fit} messages. These generally can be ignored
-provided the test outputs look sensible. Less commonly, the procedures can fail to converge, which
+It is common to receive a \code{boundary (singular) fit} message. This generally can be ignored
+provided the test output looks sensible. Less commonly, the procedure can fail to converge, which
 can happen when counts of one or more categories are very small or zero in some conditions. In such
 cases, any results should be regarded with caution.
+
+Sometimes, convergence issues can be remedied by changing the optimizer or its control parameters.
+For example, the following code uses the \code{bobyqa} optimizer instead of the \code{Nelder_Mead} optimizer
+and increases the maximum number of function evaluations:
+
+\code{m = glmer.mp.con(m, pairwise ~ X1*X2, adjust="holm", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000)))}
+
+See \code{\link[lme4]{glmerControl}} for more information.
 }
 \examples{
 library(car)
@@ -73,6 +82,7 @@ m2 = glmer.mp(Y ~ X1*X2 + (1|PId), data=ws2)
 Anova.mp(m2, type=3)
 glmer.mp.con(m2, pairwise ~ X1*X2, adjust="holm") # compare
 
+\donttest{
 ## within-subjects factors (x1,X2) with polytomous response (Y)
 data(ws3, package="multpois")
 
@@ -86,6 +96,7 @@ contrasts(ws3$X2) <- "contr.sum"
 m3 = glmer.mp(Y ~ X1*X2 + (1|PId), data=ws3)
 Anova.mp(m3, type=3)
 glmer.mp.con(m3, pairwise ~ X1*X2, adjust="holm")
+}
 
 }
 \references{

@@ -35,12 +35,21 @@
 #'
 #' Users wishing to verify the correctness of \code{glmer.mp.con} should compare its results to
 #' \code{\link[emmeans]{emmeans}} results for models built with \code{\link[lme4]{glmer}} using
-#' \code{family=binomial} for dichotomous responses. The results should be similar.
+#' \code{family=binomial} for dichotomous responses. Factor contrasts should be set to sum-to-zero
+#' contrasts (i.e., \code{"contr.sum"}).
 #'
-#' @note It is common to receive \code{boundary (singular) fit} messages. These generally can be ignored
-#' provided the test outputs look sensible. Less commonly, the procedures can fail to converge, which
+#' @note It is common to receive a \code{boundary (singular) fit} message. This generally can be ignored
+#' provided the test output looks sensible. Less commonly, the procedure can fail to converge, which
 #' can happen when counts of one or more categories are very small or zero in some conditions. In such
 #' cases, any results should be regarded with caution.
+#'
+#' @note Sometimes, convergence issues can be remedied by changing the optimizer or its control parameters.
+#' For example, the following code uses the \code{bobyqa} optimizer instead of the \code{Nelder_Mead} optimizer
+#' and increases the maximum number of function evaluations:
+#'
+#' \code{m = glmer.mp.con(m, pairwise ~ X1*X2, adjust="holm", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000)))}
+#'
+#' See \code{\link[lme4]{glmerControl}} for more information.
 #'
 #' @references Baker, S.G. (1994). The multinomial-Poisson transformation.
 #' \emph{The Statistician 43} (4), pp. 495-504. \doi{10.2307/2348134}
@@ -85,6 +94,7 @@
 #' Anova.mp(m2, type=3)
 #' glmer.mp.con(m2, pairwise ~ X1*X2, adjust="holm") # compare
 #'
+#' \donttest{
 #' ## within-subjects factors (x1,X2) with polytomous response (Y)
 #' data(ws3, package="multpois")
 #'
@@ -98,6 +108,7 @@
 #' m3 = glmer.mp(Y ~ X1*X2 + (1|PId), data=ws3)
 #' Anova.mp(m3, type=3)
 #' glmer.mp.con(m3, pairwise ~ X1*X2, adjust="holm")
+#' }
 #'
 #' @importFrom stats model.frame
 #' @importFrom stats terms
@@ -193,7 +204,7 @@ glmer.mp.con <- function(
   # get our dependent variable
   DV = f0[[2]]
 
-  # get our model's original terms so we can preserve random effects
+  # get our model's original terms so we can adjust random factors
   tlabs = attr(t0, "term.labels")
 
   # now do each of the pairwise comparisons and store them in an output table
@@ -206,15 +217,24 @@ glmer.mp.con <- function(
       # get the relevant subset of rows for this comparison
       d0 = df[df[[facname]] == lvls[i] | df[[facname]] == lvls[j],]
 
-      # update factor levels and contrasts for subset
+      # update our composite factor's levels and contrasts
       d0[[facname]] = factor(d0[[facname]])
       contrasts(d0[[facname]]) <- "contr.sum"
 
       # create our model formula for this comparison
-      s = paste0(DV, " ~ ", facname, " + alt + ", facname, ":alt")
+      s = paste0(DV, " ~ alt + ", facname, " + alt:", facname)
       for (k in 1:length(tlabs)) {
+        # adjust any random factors in the formula
         if (grepl("|", tlabs[k], fixed=TRUE)) {
-          s = paste0(s, " + (", tlabs[k], ")")
+          lhs = trimws(strsplit(tlabs[k], "|", fixed=TRUE)[[1]][1])
+          rhs = trimws(strsplit(tlabs[k], "|", fixed=TRUE)[[1]][2])
+          s = paste0(s, " + (", lhs, " + alt | ", rhs, ")")
+
+          # update the random factor's levels to match the subset table
+          hascol = plyr::laply(colnames(d0), function(cn) cn == rhs)
+          if (any(hascol)) {
+            d0[[rhs]] = factor(d0[[rhs]]) # update
+          }
         }
       }
       f = as.formula(s) # convert to formula
@@ -222,12 +242,12 @@ glmer.mp.con <- function(
       # finally, create our model and examine its effects
       m = lme4::glmer(formula=f, data=d0, family=poisson, ...) # m-P trick
       a = car::Anova(m, type=3)
-      a = a[grep(":alt", rownames(a), fixed=TRUE),] # get relevant entry
+      a = a[grep("alt:", rownames(a), fixed=TRUE),] # get relevant entry
 
       # improve our row
       rownames(a)[1] = paste0(lvls[i], " - ", lvls[j]) # update contrast label
       colnames(a)[3] = "p.value" # simplify p-value label
-      a = dplyr::mutate(a, .after="Df", "N"=nrow(d0)/length(levels(df$alt))) # insert N
+      a = dplyr::mutate(a, .after="Df", N=nrow(d0)/length(levels(df$alt))) # insert N
 
       # create a new output row entry and add it to our output table
       r = list(Contrast = rownames(a)[1],
